@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>서울 박물관·미술관·갤러리 지도 (JS 데이터)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <!-- JS 데이터 (file://에서도 동작) -->
+  <script src="museum_data.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; width: 100%; }
+    .map-title {
+      position: absolute; z-index: 1000; left: 12px; top: 12px;
+      background: rgba(255,255,255,0.9); border-radius: 12px;
+      padding: 10px 12px; font-size: 14px; font-weight: 600;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    }
+    .leaflet-popup-content b { font-size: 14px; }
+    .leaflet-popup-content small { color:#555; }
+    @media (prefers-color-scheme: dark) {
+      .map-title { background: rgba(32,32,32,0.85); color:#eee; }
+    }
+    .ctrl {
+      position:absolute; z-index:1000; right:12px; top:12px;
+      background: rgba(255,255,255,0.9); border-radius: 10px;
+      padding: 6px 10px; box-shadow: 0 2px 10px rgba(0,0,0,.08);
+      font-size:12px;
+    }
+    .ctrl button { border:1px solid #ddd; background:#fff; padding:6px 8px; border-radius:8px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="map-title">서울 박물관·미술관·갤러리 지도</div>
+  <div class="ctrl"><button id="btnReset">서울 전체 보기</button></div>
+
+  <script>
+    // 서울 대략적 경계 (남서/북동)
+    const SEOUL_BOUNDS = [[37.413294, 126.734086], [37.715133, 127.269311]];
+
+    const map = L.map('map', {
+      zoomControl: true,
+      maxBounds: SEOUL_BOUNDS,
+      maxBoundsViscosity: 0.7
+    });
+
+    
+    // 첫 화면을 서울 전체로 맞춤
+    map.fitBounds(SEOUL_BOUNDS);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const markers = L.markerClusterGroup({ showCoverageOnHover:false, spiderfyOnMaxZoom:true });
+    const dataBounds = [];
+
+    (DATA.stores || []).forEach(s => {
+      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) return;
+      // 서울권 좌표만 허용 (이상치 제거)
+      if (s.lat < 37 || s.lat > 38 || s.lng < 126 || s.lng > 128) return;
+
+      const popup = `<div>
+        <b>${escapeHtml(s.name)}</b><br/>
+        <small>${escapeHtml(s.address || '')}</small><br/>
+        <a href="https://www.google.com/maps?q=${s.lat},${s.lng}" target="_blank" rel="noopener">구글지도 열기</a>
+      </div>`;
+      const m = L.marker([s.lat, s.lng]).bindPopup(popup);
+      markers.addLayer(m);
+      dataBounds.push([s.lat, s.lng]);
+    });
+
+    map.addLayer(markers);
+
+    // 버튼: 서울 전체 보기
+    document.getElementById('btnReset').addEventListener('click', () => {
+      map.fitBounds(SEOUL_BOUNDS, { padding: [24,24] });
+    });
+
+    function escapeHtml(str){
+      return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+  </script>
+</body>
+</html>
